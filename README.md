@@ -1,4 +1,4 @@
-# 3d U-Net Secondary Features
+# 3D U-Net Secondary Features
 Resources shared as part of the paper - Improved Pancreatic Tumor Detection by Utilizing Clinically-Relevant Secondary Features
 
 # Datasets
