@@ -1,4 +1,4 @@
-#Probabilistic 3D U-Net 
+# Probabilistic 3D U-Net 
 Resources shared as part of the paper - Probabilistic 3D Segmentation with Normalizing Flows for Aleatoric Uncertainty Quantification in Medical Data Volumes
 
 # Datasets
