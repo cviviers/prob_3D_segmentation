@@ -1,7 +1,15 @@
 # Probabilistic 3D U-Net 
 Resources shared as part of the paper - Probabilistic 3D Segmentation with Normalizing Flows for Aleatoric Uncertainty Quantification in Medical Data Volumes
 
+Network Architecture:
 ![alt text](https://github.com/cviviers/prob_3D_segmentation/blob/main/Prob3DUnet.PNG?raw=true)
+
+Example predictions:
+![alt text](https://github.com/cviviers/prob_3D_segmentation/blob/main/images/full_adjusted.png)
+
+3D visuals:
+![](https://github.com/cviviers/prob_3D_segmentation/blob/main/images/gifmovie_prediction.gif )![](https://github.com/cviviers/prob_3D_segmentation/blob/main/images/gifmovie.gif )
+
 # Datasets
 Dataset will be shared upon acceptance of paper
 
