@@ -2,7 +2,7 @@
 Resources shared as part of the paper - Probabilistic 3D Segmentation with Normalizing Flows for Aleatoric Uncertainty Quantification in Medical Data Volumes
 
 Network Architecture:
-![alt text](https://github.com/cviviers/prob_3D_segmentation/blob/main/Prob3DUnet.PNG?raw=true)
+![alt text](https://github.com/cviviers/prob_3D_segmentation/blob/main/images/Prob3DUnet.PNG?raw=true)
 
 Example predictions:
 ![alt text](https://github.com/cviviers/prob_3D_segmentation/blob/main/images/full_adjusted.png)
