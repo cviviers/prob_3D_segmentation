@@ -1,0 +1,199 @@
+# use a fixed random seed to guarantee that when you run the code twice you will get the same outcome
+manual_seed: 42
+# model configuration
+model:
+  # model class, e.g. UNet3D, ResidualUNet3D
+  name: ProbUNet3D
+  # number of input channels to the model
+  in_channels: 1
+  # number of output channels
+  out_channels: 1
+  # determines the order of operators in a single layer (gcr - GroupNorm+Conv3d+ReLU)
+  layer_order: crb
+  # feature maps scale factor
+  f_maps: 32
+  # number of groups in the groupnorm
+  # num_groups: 8
+  # depth of the U-Net
+  num_levels: 4
+  # apply element-wise nn.Sigmoid after the final 1x1 convolution, otherwise apply nn.Softmax
+  final_sigmoid: true
+  # if True applies the final normalization layer (sigmoid or softmax), otherwise the networks returns the output from the final convolution layer; use False for regression problems, e.g. de-noising
+  is_segmentation: true
+  # model configuration for encoder/decoder of prior and posterior
+  # determines the order of operators in a single layer (gcr - GroupNorm+Conv3d+ReLU)
+  prior_layer_order: cr
+  posterior_layer_order: cr
+  # feature maps scale factor for the prior and posterior
+  encoders_f_maps: 32
+  # number of groups in the groupnorm
+  # encoder_num_groups: 8
+  # depth of the encoder
+  encoder_num_levels: 4
+  no_convs_fcomb: 4
+  # latent dimension
+  latent_dim: 6
+  # flow type
+  flow_type: false
+  # num flow steps
+  # num_flow_steps: 2
+# trainer configuration
+trainer:
+  # path to the checkpoint directory
+  checkpoint_dir: "CHECKPOINT_DIR/Prob3DUnet_vanilla_0"
+  # path to latest checkpoint; if provided the training will be resumed from that checkpoint
+  resume: null
+  # how many iterations between validations
+  validate_after_iters: 1000
+  # how many iterations between tensorboard logging
+  log_after_iters: 1000
+  # max number of epochs
+  max_num_epochs: 50000
+  # max number of iterations
+  max_num_iterations: 300000
+  # model with higher eval score is considered better
+  elbo_score_lower_is_better: True
+# optimizer configuration
+optimizer:
+  # initial learning rate
+  learning_rate: 0.001
+  # weight decay
+  weight_decay: 1.0e-05
+# loss function configuration
+loss:
+  # loss function to be used during training
+  name: Elbo
+  beta_stop: 1
+  beta_start: 0
+  max_num_iterations: 300000
+  beta_cycles: 10
+  beta_ratio: 0.5
+  beta_scheduler: cosine
+  reconstruction_loss: BCE
+  beta_magnitude: 10.0
+  # A manual rescaling weight given to each class.
+  # pos_weight: [100]
+  # a target value that is ignored and does not contribute to the input gradient
+  ignore_index: null
+# evaluation metric configuration
+eval_metric:
+  name: MeanIoU
+  # a target label that is ignored during metric evaluation
+  ignore_index: null
+# learning rate scheduler configuration
+lr_scheduler:
+  factor: 0.2
+  mode: min
+  name: ReduceLROnPlateau
+  patience: 20
+# data loaders configuration
+loaders:
+  # class of the HDF5 dataset, currently StandardHDF5Dataset and LazyHDF5Dataset are supported.
+  # When using LazyHDF5Dataset make sure to set `num_workers = 1`, due to a bug in h5py which corrupts the data
+  # when reading from multiple threads.
+  dataset: LazyHDF5Dataset
+  # batch dimension; if number of GPUs is N > 1, then a batch_size of N * batch_size will automatically be taken for DataParallel
+  batch_size: 4
+  # how many subprocesses to use for data loading
+  num_workers: 16
+  # path to the raw data within the H5
+  raw_internal_path: raw
+  # path to the the label data withtin the H5
+  label_internal_path:  [label1, label2, label3, label4]  # label
+  # use one random label per image
+  one_label: True
+  # path to the pixel-wise weight map withing the H5 if present
+  weight_internal_path: null
+  # configuration of the train loader
+  train:
+    # absolute paths to the training datasets; if a given path is a directory all H5 files ('*.h5', '*.hdf', '*.hdf5', '*.hd5')
+    # inside this this directory will be included as well (non-recursively)
+    file_paths:
+      - "path/to/train_0/"
+    # SliceBuilder configuration, i.e. how to iterate over the input volume patch-by-patch
+    slice_builder:
+      # SliceBuilder class
+      name: SliceBuilder
+      # validation patch (can be bigger than train patch since there is no backprop)
+      patch_shape: [96 , 180, 180]
+      # validation stride (validation patches doesn't need to overlap)
+      stride_shape: [96 , 180, 180]
+    # data transformations/augmentations
+    transformer:
+      raw:
+        - name: CropCube
+          size: [64, 128, 128]
+          centered: true
+        # re-scale the values to be 0-mean and 1-std
+        - name: Standardize
+        # randomly flips an image across randomly chosen axis
+        #- name: RandomFlip
+        # rotate an image by 90 degrees around a randomly chosen plane
+        # - name: RandomRotate90
+        # rotate an image by a random degrees from taken from (-angle_spectrum, angle_spectrum) interval
+        - name: RandomRotate
+        #   # rotate only in ZY only since most volumetric data is anisotropic
+          axes: [[2, 1]]
+          angle_spectrum: 30
+          execution_probability: 0.3
+        #  mode: reflect
+        # apply elasitc deformations of 3D patches on a per-voxel mesh
+        - name: ElasticDeformation
+          spline_order: 2
+          execution_probability: 0.3
+        # randomly adjust contrast
+        # - name: RandomContrast
+        # apply additive Gaussian noise
+        # - name: AdditiveGaussianNoise
+        # apply additive Poisson noise
+        # - name: AdditivePoissonNoise
+        # convert to torch tensor
+        - name: ToTensor
+          # add additional 'channel' axis when the input data is 3D
+          expand_dims: true
+      label:
+        - name: CropCube
+          size: [64, 128, 128]
+          centered: true
+        #- name: RandomFlip
+        # - name: RandomRotate90
+        - name: RandomRotate
+        #   # rotate only in ZY only since most volumetric data is anisotropic
+          axes: [[2, 1]]
+          angle_spectrum: 30
+          execution_probability: 0.3
+        #  mode: reflect
+        - name: ElasticDeformation
+          spline_order: 0
+          execution_probability: 0.3
+        - name: ToTensor
+          expand_dims: true
+
+  # configuration of the validation loaders
+  val:
+    # paths to the validation datasets; if a given path is a directory all H5 files ('*.h5', '*.hdf', '*.hdf5', '*.hd5')
+    # inside this this directory will be included as well (non-recursively)
+    file_paths:
+      - "path/to/val_0/"
+    # SliceBuilder configuration
+    slice_builder:
+      # SliceBuilder class
+      name: SliceBuilder
+      # validation patch (can be bigger than train patch since there is no backprop)
+      patch_shape: [96, 180, 180]
+      # validation stride (validation patches doesn't need to overlap)
+      stride_shape: [96 , 180, 180]
+    transformer:
+      raw:
+        - name: CropCube
+          size: [64, 128, 128]
+          centered: true
+        - name: Standardize
+        - name: ToTensor
+          expand_dims: true
+      label:
+        - name: CropCube
+          size: [64, 128, 128]
+          centered: true
+        - name: ToTensor
+          expand_dims: true

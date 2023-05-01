@@ -1,0 +1,101 @@
+# use a fixed random seed to guarantee that when you run the code twice you will get the same outcome
+manual_seed: 42 
+# path to the checkpoint file containing the model
+model_path: "CHECKPOINT_DIR/Prob3DUnet_vanilla_0/best_checkpoint.pytorch"
+
+model:
+  # model class, e.g. UNet3D, ResidualUNet3D
+  name: ProbUNet3D
+  # number of input channels to the model
+  in_channels: 1
+  # number of output channels
+  out_channels: 1
+  # determines the order of operators in a single layer (gcr - GroupNorm+Conv3d+ReLU)
+  layer_order: crb
+  # feature maps scale factor
+  f_maps: 32
+  # number of groups in the groupnorm
+  # num_groups: 8
+  # depth of the U-Net
+  num_levels: 4
+  # apply element-wise nn.Sigmoid after the final 1x1 convolution, otherwise apply nn.Softmax
+  final_sigmoid: true
+  # if True applies the final normalization layer (sigmoid or softmax), otherwise the networks returns the output from the final convolution layer; use False for regression problems, e.g. de-noising
+  is_segmentation: true
+  # model configuration for encoder/decoder of prior and posterior
+  # determines the order of operators in a single layer (gcr - GroupNorm+Conv3d+ReLU)
+  prior_layer_order: cr
+  posterior_layer_order: cr
+  # feature maps scale factor for the prior and posterior
+  encoders_f_maps: 32
+  # number of groups in the groupnorm
+  # encoder_num_groups: 8
+  # depth of the encoder
+  encoder_num_levels: 4
+  no_convs_fcomb: 4
+  # latent dimension
+  latent_dim: 6
+  # flow type
+  flow_type: false
+  # num flow steps
+  # num_flow_steps: 2
+  # num flow steps
+  # num_flow_steps: 2
+# validator configuration
+validator:
+  # standard in memory validator
+  name: 'StandardValidator'
+# evaluation metric configuration
+eval_metric:
+  name: MeanIoU
+  # a target label that is ignored during metric evaluation
+  ignore_index: null
+  # number of samples to use
+  num_samples: 16
+# specify the test datasets
+loaders:
+  # class of the HDF5 dataset, currently StandardHDF5Dataset and LazyHDF5Dataset are supported.
+  # When using LazyHDF5Dataset make sure to set `num_workers = 1`, due to a bug in h5py which corrupts the data
+  # when reading from multiple threads.
+  dataset: StandardHDF5Dataset
+  # batch dimension; if number of GPUs is N > 1, then a batch_size of N * batch_size will automatically be taken for DataParallel
+  batch_size: 1
+  # mirror pad the raw data in each axis for sharper prediction near the boundaries of the volume
+  mirror_padding: [16, 32, 32]
+  # path to the raw data within the H5
+  raw_internal_path: raw
+  # use one random label per image
+  one_label: True
+  # path to the label data within the H5
+  label_internal_path: [label1, label2, label3, label4]  # label1
+  # how many subprocesses to use for data loading
+  num_workers: 8
+  # path to the directory where the predictions from the network will be saved (optional: if not provided the TEST_SET directory will be used)
+  output_dir: "path/to/predictions/"
+  complete_val:
+    # paths to the val datasets; if a given path is a directory all H5 files ('*.h5', '*.hdf', '*.hdf5', '*.hd5')
+    # inside this this directory will be included as well (non-recursively)
+    file_paths:
+      - "path/to/test"
+    # SliceBuilder configuration, i.e. how to iterate over the input volume patch-by-patch
+    slice_builder:
+      # SliceBuilder class
+      name: SliceBuilder
+      # validation patch (can be bigger than train patch since there is no backprop)
+      patch_shape: [96, 180, 180]
+      # validation stride (validation patches doesn't need to overlap)
+      stride_shape: [96 , 180, 180]
+    transformer:
+      raw:
+        - name: CropCube
+          size: [64, 128, 128]
+          centered: true
+        - name: Standardize
+        - name: ToTensor
+          expand_dims: true
+      label:
+        - name: CropCube
+          size: [64, 128, 128]
+          centered: true
+        - name: ToTensor
+          expand_dims: true
